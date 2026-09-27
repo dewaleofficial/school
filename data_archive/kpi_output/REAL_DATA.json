@@ -1,0 +1,1121 @@
+{
+  "generated_at": "2026-09-27 09:25 UTC",
+  "term_order": [
+    "Fall 2024",
+    "Spring 2025",
+    "Summer 2025",
+    "Fall 2025",
+    "Spring 2026",
+    "Summer 2026"
+  ],
+  "term_calendar": {
+    "Fall 2024": {
+      "start": "2024-08-26",
+      "end": "2025-01-05"
+    },
+    "Spring 2025": {
+      "start": "2025-01-06",
+      "end": "2025-05-11"
+    },
+    "Summer 2025": {
+      "start": "2025-05-12",
+      "end": "2025-09-01"
+    },
+    "Fall 2025": {
+      "start": "2025-09-02",
+      "end": "2026-01-04"
+    },
+    "Spring 2026": {
+      "start": "2026-01-05",
+      "end": "2026-05-03"
+    },
+    "Summer 2026": {
+      "start": "2026-05-04",
+      "end": "2026-08-30"
+    }
+  },
+  "active_headcount_by_term": {
+    "Fall 2024": 67,
+    "Spring 2025": 137,
+    "Summer 2025": 155,
+    "Fall 2025": 207,
+    "Spring 2026": 182,
+    "Summer 2026": 178
+  },
+  "enrollment_by_program_term": {
+    "Fall 2024": {
+      "ADN (1+1)": 42,
+      "PN": 24,
+      "BSN": 1
+    },
+    "Spring 2025": {
+      "ADN (1+1)": 74,
+      "PN": 56,
+      "BSN": 4,
+      "RN-to-BSN": 3
+    },
+    "Summer 2025": {
+      "PN": 94,
+      "ADN (1+1)": 55,
+      "BSN": 3,
+      "RN-to-BSN": 3
+    },
+    "Fall 2025": {
+      "PN": 142,
+      "ADN (1+1)": 56,
+      "BSN": 6,
+      "RN-to-BSN": 3
+    },
+    "Spring 2026": {
+      "PN": 130,
+      "ADN (1+1)": 43,
+      "BSN": 6,
+      "RN-to-BSN": 3
+    },
+    "Summer 2026": {
+      "PN": 135,
+      "ADN (1+1)": 34,
+      "BSN": 9
+    }
+  },
+  "retention": [
+    {
+      "from": "Fall 2024",
+      "to": "Spring 2025",
+      "denominator": 67,
+      "retained": 56,
+      "rate": 0.8358
+    },
+    {
+      "from": "Spring 2025",
+      "to": "Summer 2025",
+      "denominator": 137,
+      "retained": 106,
+      "rate": 0.7737
+    },
+    {
+      "from": "Summer 2025",
+      "to": "Fall 2025",
+      "denominator": 155,
+      "retained": 140,
+      "rate": 0.9032
+    },
+    {
+      "from": "Fall 2025",
+      "to": "Spring 2026",
+      "denominator": 207,
+      "retained": 145,
+      "rate": 0.7005
+    },
+    {
+      "from": "Spring 2026",
+      "to": "Summer 2026",
+      "denominator": 182,
+      "retained": 130,
+      "rate": 0.7143
+    }
+  ],
+  "retention_by_enroll_type": {
+    "Full-time (100%)": {
+      "denominator": 431,
+      "retained": 331,
+      "rate": 0.768
+    },
+    "Half-time (50%)": {
+      "denominator": 317,
+      "retained": 246,
+      "rate": 0.776
+    }
+  },
+  "retention_by_program": [
+    {
+      "from": "Fall 2024",
+      "to": "Spring 2025",
+      "program": "ADN (1+1)",
+      "denominator": 42,
+      "retained": 31,
+      "rate": 0.7381
+    },
+    {
+      "from": "Fall 2024",
+      "to": "Spring 2025",
+      "program": "PN",
+      "denominator": 24,
+      "retained": 24,
+      "rate": 1.0
+    },
+    {
+      "from": "Spring 2025",
+      "to": "Summer 2025",
+      "program": "ADN (1+1)",
+      "denominator": 74,
+      "retained": 57,
+      "rate": 0.7703
+    },
+    {
+      "from": "Spring 2025",
+      "to": "Summer 2025",
+      "program": "PN",
+      "denominator": 56,
+      "retained": 43,
+      "rate": 0.7679
+    },
+    {
+      "from": "Summer 2025",
+      "to": "Fall 2025",
+      "program": "ADN (1+1)",
+      "denominator": 55,
+      "retained": 52,
+      "rate": 0.9455
+    },
+    {
+      "from": "Summer 2025",
+      "to": "Fall 2025",
+      "program": "PN",
+      "denominator": 94,
+      "retained": 82,
+      "rate": 0.8723
+    },
+    {
+      "from": "Fall 2025",
+      "to": "Spring 2026",
+      "program": "ADN (1+1)",
+      "denominator": 56,
+      "retained": 38,
+      "rate": 0.6786
+    },
+    {
+      "from": "Fall 2025",
+      "to": "Spring 2026",
+      "program": "PN",
+      "denominator": 142,
+      "retained": 98,
+      "rate": 0.6901
+    },
+    {
+      "from": "Spring 2026",
+      "to": "Summer 2026",
+      "program": "ADN (1+1)",
+      "denominator": 43,
+      "retained": 28,
+      "rate": 0.6512
+    },
+    {
+      "from": "Spring 2026",
+      "to": "Summer 2026",
+      "program": "PN",
+      "denominator": 130,
+      "retained": 96,
+      "rate": 0.7385
+    }
+  ],
+  "withdrawal_by_term": {
+    "Fall 2024": {
+      "count": 19,
+      "denominator": 67,
+      "rate": 0.2836
+    },
+    "Spring 2025": {
+      "count": 31,
+      "denominator": 137,
+      "rate": 0.2263
+    },
+    "Summer 2025": {
+      "count": 17,
+      "denominator": 155,
+      "rate": 0.1097
+    },
+    "Fall 2025": {
+      "count": 61,
+      "denominator": 207,
+      "rate": 0.2947
+    },
+    "Spring 2026": {
+      "count": 39,
+      "denominator": 182,
+      "rate": 0.2143
+    },
+    "Summer 2026": {
+      "count": 22,
+      "denominator": 178,
+      "rate": 0.1236
+    }
+  },
+  "withdrawal_reasons": {
+    "Academic Dismissal": 72,
+    "Personal": 20,
+    "Administrative Withdrawal": 33,
+    "Financial reasons": 4,
+    "No Show": 2,
+    "Family Issues": 4,
+    "Personal Problems": 6,
+    "Not stated": 35,
+    "Travel": 1,
+    "Health": 3,
+    "Family": 2,
+    "Undisclosed": 2,
+    "Withdrawn": 1,
+    "Academic Dishonesty": 3,
+    "Deceased": 1
+  },
+  "withdrawal_reasons_by_term": {
+    "Fall 2024": {
+      "Academic Dismissal": 6,
+      "Personal": 4,
+      "Administrative Withdrawal": 4,
+      "Financial reasons": 2,
+      "No Show": 1,
+      "Family Issues": 1,
+      "Personal Problems": 1
+    },
+    "Spring 2025": {
+      "Administrative Withdrawal": 12,
+      "Academic Dismissal": 5,
+      "Not stated": 4,
+      "Personal": 3,
+      "Personal Problems": 2,
+      "Financial reasons": 1,
+      "Travel": 1,
+      "Health": 1,
+      "Family Issues": 1,
+      "Family": 1
+    },
+    "Summer 2025": {
+      "Not stated": 6,
+      "Personal": 4,
+      "Academic Dismissal": 3,
+      "Administrative Withdrawal": 2,
+      "Personal Problems": 1,
+      "Health": 1
+    },
+    "Fall 2025": {
+      "Academic Dismissal": 31,
+      "Not stated": 15,
+      "Administrative Withdrawal": 8,
+      "Personal": 5,
+      "Personal Problems": 2
+    },
+    "Spring 2026": {
+      "Academic Dismissal": 13,
+      "Not stated": 9,
+      "Administrative Withdrawal": 4,
+      "Personal": 3,
+      "Family Issues": 2,
+      "Undisclosed": 2,
+      "Withdrawn": 1,
+      "Financial reasons": 1,
+      "Family": 1,
+      "Health": 1,
+      "No Show": 1,
+      "Academic Dishonesty": 1
+    },
+    "Summer 2026": {
+      "Academic Dismissal": 14,
+      "Administrative Withdrawal": 3,
+      "Academic Dishonesty": 2,
+      "Deceased": 1,
+      "Personal": 1,
+      "Not stated": 1
+    }
+  },
+  "course_pass_fail": {
+    "overall_pass_rate": 0.8356,
+    "graded_n": 4380,
+    "by_course": [
+      {
+        "course_no": "NUR120-L",
+        "course_title": "Foundations of Adult Nursing I - Lab",
+        "n": 1,
+        "passes": 0,
+        "pass_rate": 0.0,
+        "fail_rate": 1.0
+      },
+      {
+        "course_no": "NUR125-L",
+        "course_title": "Foundations of IV Therapy and Phelbotomy - Lab",
+        "n": 1,
+        "passes": 0,
+        "pass_rate": 0.0,
+        "fail_rate": 1.0
+      },
+      {
+        "course_no": "NUR100-L",
+        "course_title": "Foundations of Nursing - Lab",
+        "n": 1,
+        "passes": 0,
+        "pass_rate": 0.0,
+        "fail_rate": 1.0
+      },
+      {
+        "course_no": "NUR150-L",
+        "course_title": "Foundations of Adult Nursing II - Lab",
+        "n": 3,
+        "passes": 1,
+        "pass_rate": 0.3333,
+        "fail_rate": 0.6667
+      },
+      {
+        "course_no": "NUR470",
+        "course_title": "Professional Nursing Transitions to Practice",
+        "n": 5,
+        "passes": 2,
+        "pass_rate": 0.4,
+        "fail_rate": 0.6
+      },
+      {
+        "course_no": "NUR100-C",
+        "course_title": "Foundations of Nursing - Clinical",
+        "n": 2,
+        "passes": 1,
+        "pass_rate": 0.5,
+        "fail_rate": 0.5
+      },
+      {
+        "course_no": "NUR150-C",
+        "course_title": "Foundations of Adult Nursing II - Clinical",
+        "n": 2,
+        "passes": 1,
+        "pass_rate": 0.5,
+        "fail_rate": 0.5
+      },
+      {
+        "course_no": "NUR155",
+        "course_title": "Transition and Review for Practical Nurses",
+        "n": 170,
+        "passes": 106,
+        "pass_rate": 0.6235,
+        "fail_rate": 0.3765
+      },
+      {
+        "course_no": "PHARM130",
+        "course_title": "Pharmacology for Practical Nurses",
+        "n": 243,
+        "passes": 172,
+        "pass_rate": 0.7078,
+        "fail_rate": 0.2922
+      },
+      {
+        "course_no": "NUR100",
+        "course_title": "Foundations of Nursing w/Lab & Clinical",
+        "n": 303,
+        "passes": 215,
+        "pass_rate": 0.7096,
+        "fail_rate": 0.2904
+      },
+      {
+        "course_no": "PHARM100",
+        "course_title": "Dosage and Calculation",
+        "n": 210,
+        "passes": 150,
+        "pass_rate": 0.7143,
+        "fail_rate": 0.2857
+      },
+      {
+        "course_no": "NUR404",
+        "course_title": "Nursing Leadership Capstone",
+        "n": 11,
+        "passes": 8,
+        "pass_rate": 0.7273,
+        "fail_rate": 0.2727
+      },
+      {
+        "course_no": "NUR120",
+        "course_title": "Foundations of Adult Nursing I w/Lab & Clinical",
+        "n": 217,
+        "passes": 162,
+        "pass_rate": 0.7465,
+        "fail_rate": 0.2535
+      },
+      {
+        "course_no": "NUR217",
+        "course_title": "Health Assessment w/Lab",
+        "n": 8,
+        "passes": 6,
+        "pass_rate": 0.75,
+        "fail_rate": 0.25
+      },
+      {
+        "course_no": "SCI101",
+        "course_title": "Anatomy w/lab",
+        "n": 8,
+        "passes": 6,
+        "pass_rate": 0.75,
+        "fail_rate": 0.25
+      },
+      {
+        "course_no": "NUR301",
+        "course_title": "Transition to Baccalaureate Nursing Practice",
+        "n": 4,
+        "passes": 3,
+        "pass_rate": 0.75,
+        "fail_rate": 0.25
+      },
+      {
+        "course_no": "AP100",
+        "course_title": "Introduction to Anatomy and Physiology",
+        "n": 277,
+        "passes": 208,
+        "pass_rate": 0.7509,
+        "fail_rate": 0.2491
+      },
+      {
+        "course_no": "NUR135",
+        "course_title": "Foundations of Obstetrics Nursing",
+        "n": 177,
+        "passes": 137,
+        "pass_rate": 0.774,
+        "fail_rate": 0.226
+      },
+      {
+        "course_no": "NUR216",
+        "course_title": "Adult Nursing  Care I w/Lab & Clinical",
+        "n": 58,
+        "passes": 45,
+        "pass_rate": 0.7759,
+        "fail_rate": 0.2241
+      },
+      {
+        "course_no": "STAT101",
+        "course_title": "Introduction to Statistics",
+        "n": 48,
+        "passes": 38,
+        "pass_rate": 0.7917,
+        "fail_rate": 0.2083
+      },
+      {
+        "course_no": "NUR270",
+        "course_title": "Transition into Professional Nursing Role",
+        "n": 67,
+        "passes": 54,
+        "pass_rate": 0.806,
+        "fail_rate": 0.194
+      },
+      {
+        "course_no": "NUR102",
+        "course_title": "Foundations of Nursing II",
+        "n": 81,
+        "passes": 66,
+        "pass_rate": 0.8148,
+        "fail_rate": 0.1852
+      },
+      {
+        "course_no": "HUM300",
+        "course_title": "Ethical Issues in Healthcare",
+        "n": 11,
+        "passes": 9,
+        "pass_rate": 0.8182,
+        "fail_rate": 0.1818
+      },
+      {
+        "course_no": "NUR201",
+        "course_title": "Contemporary Nursing Practice w/Lab",
+        "n": 22,
+        "passes": 18,
+        "pass_rate": 0.8182,
+        "fail_rate": 0.1818
+      },
+      {
+        "course_no": "NUR150",
+        "course_title": "Foundations of Adult Nursing II",
+        "n": 198,
+        "passes": 162,
+        "pass_rate": 0.8182,
+        "fail_rate": 0.1818
+      },
+      {
+        "course_no": "PHARM205",
+        "course_title": "Pharmacology",
+        "n": 11,
+        "passes": 9,
+        "pass_rate": 0.8182,
+        "fail_rate": 0.1818
+      },
+      {
+        "course_no": "NUR101",
+        "course_title": "Foundations of Nursing W/lab & Clinical",
+        "n": 6,
+        "passes": 5,
+        "pass_rate": 0.8333,
+        "fail_rate": 0.1667
+      },
+      {
+        "course_no": "PHARM225",
+        "course_title": "Pharmacology for Registered Nurses",
+        "n": 98,
+        "passes": 82,
+        "pass_rate": 0.8367,
+        "fail_rate": 0.1633
+      },
+      {
+        "course_no": "AP209",
+        "course_title": "Human Physiology with Lab",
+        "n": 46,
+        "passes": 40,
+        "pass_rate": 0.8696,
+        "fail_rate": 0.1304
+      },
+      {
+        "course_no": "NUR236",
+        "course_title": "Adult Nursing Care II w/Lab & Clinical",
+        "n": 54,
+        "passes": 47,
+        "pass_rate": 0.8704,
+        "fail_rate": 0.1296
+      },
+      {
+        "course_no": "NUR125",
+        "course_title": "Foundations of IV Therapy and Phelbotomy w/Lab",
+        "n": 185,
+        "passes": 163,
+        "pass_rate": 0.8811,
+        "fail_rate": 0.1189
+      },
+      {
+        "course_no": "NUR302",
+        "course_title": "Research Inquiry and Evidence-Based Practice",
+        "n": 9,
+        "passes": 8,
+        "pass_rate": 0.8889,
+        "fail_rate": 0.1111
+      },
+      {
+        "course_no": "ENG101",
+        "course_title": "English Composition I",
+        "n": 209,
+        "passes": 187,
+        "pass_rate": 0.8947,
+        "fail_rate": 0.1053
+      },
+      {
+        "course_no": "MAT300",
+        "course_title": "Statistics for Healthcare",
+        "n": 10,
+        "passes": 9,
+        "pass_rate": 0.9,
+        "fail_rate": 0.1
+      },
+      {
+        "course_no": "NUR245",
+        "course_title": "Nursing Care of Mothers and Infants w/Lab & Clinical",
+        "n": 54,
+        "passes": 49,
+        "pass_rate": 0.9074,
+        "fail_rate": 0.0926
+      },
+      {
+        "course_no": "PSY101",
+        "course_title": "Introduction to Psychology",
+        "n": 217,
+        "passes": 197,
+        "pass_rate": 0.9078,
+        "fail_rate": 0.0922
+      },
+      {
+        "course_no": "SOC101",
+        "course_title": "Introduction to Sociology",
+        "n": 51,
+        "passes": 47,
+        "pass_rate": 0.9216,
+        "fail_rate": 0.0784
+      },
+      {
+        "course_no": "NUR205",
+        "course_title": "Physical Assessment w/Lab",
+        "n": 53,
+        "passes": 49,
+        "pass_rate": 0.9245,
+        "fail_rate": 0.0755
+      },
+      {
+        "course_no": "NUR145",
+        "course_title": "Foundations of Pediatric Nursing",
+        "n": 152,
+        "passes": 141,
+        "pass_rate": 0.9276,
+        "fail_rate": 0.0724
+      },
+      {
+        "course_no": "NUR140",
+        "course_title": "Foundations of Mental Health",
+        "n": 164,
+        "passes": 153,
+        "pass_rate": 0.9329,
+        "fail_rate": 0.0671
+      },
+      {
+        "course_no": "HUM200",
+        "course_title": "Ethics",
+        "n": 54,
+        "passes": 51,
+        "pass_rate": 0.9444,
+        "fail_rate": 0.0556
+      },
+      {
+        "course_no": "COL010",
+        "course_title": "College and Career Success",
+        "n": 274,
+        "passes": 261,
+        "pass_rate": 0.9526,
+        "fail_rate": 0.0474
+      },
+      {
+        "course_no": "NUT100",
+        "course_title": "Nutrition Across the Lifespan",
+        "n": 179,
+        "passes": 171,
+        "pass_rate": 0.9553,
+        "fail_rate": 0.0447
+      },
+      {
+        "course_no": "NUR265",
+        "course_title": "Care of Children w/Clinical",
+        "n": 61,
+        "passes": 59,
+        "pass_rate": 0.9672,
+        "fail_rate": 0.0328
+      },
+      {
+        "course_no": "ENG102",
+        "course_title": "English Composition II",
+        "n": 63,
+        "passes": 61,
+        "pass_rate": 0.9683,
+        "fail_rate": 0.0317
+      },
+      {
+        "course_no": "NUR255",
+        "course_title": "Behavioral Health Nursing w/Clinical",
+        "n": 62,
+        "passes": 61,
+        "pass_rate": 0.9839,
+        "fail_rate": 0.0161
+      },
+      {
+        "course_no": "BIO301",
+        "course_title": "Introduction to Molecular Genetics",
+        "n": 3,
+        "passes": 3,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "BIO401",
+        "course_title": "Molecular Genetics",
+        "n": 3,
+        "passes": 3,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "ENG222",
+        "course_title": "Professional Communication",
+        "n": 5,
+        "passes": 5,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "COMM300",
+        "course_title": "Public Speaking",
+        "n": 3,
+        "passes": 3,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR216-L",
+        "course_title": "Adult Nursing Care I - Lab",
+        "n": 2,
+        "passes": 2,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "MCB100",
+        "course_title": "Microbiology with Lab",
+        "n": 41,
+        "passes": 41,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR256",
+        "course_title": "Behavioral Health Nursing",
+        "n": 4,
+        "passes": 4,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR221",
+        "course_title": "Adult Health Nursing Care I w/lab & Clinical",
+        "n": 6,
+        "passes": 6,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR225",
+        "course_title": "Adult Health Nursing Care II w/Lab & Clinical",
+        "n": 4,
+        "passes": 4,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR235",
+        "course_title": "Adult Nursing Care II w/Lab & Clinical",
+        "n": 3,
+        "passes": 3,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR216-C",
+        "course_title": "Adult Nursing Care I - Clinical",
+        "n": 3,
+        "passes": 3,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR201-L",
+        "course_title": "Contemporary Nursing Practice - Lab",
+        "n": 1,
+        "passes": 1,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR300",
+        "course_title": "Nursing and Healthcare Roles",
+        "n": 7,
+        "passes": 7,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR290",
+        "course_title": "Preceptorship",
+        "n": 59,
+        "passes": 59,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR490",
+        "course_title": "Preceptorship",
+        "n": 5,
+        "passes": 5,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR401",
+        "course_title": "Informatics",
+        "n": 8,
+        "passes": 8,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR402",
+        "course_title": "Genetics/Genomics in Nursing",
+        "n": 8,
+        "passes": 8,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR403",
+        "course_title": "Nursing Leadership",
+        "n": 8,
+        "passes": 8,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR400",
+        "course_title": "Advanced Concepts of Care",
+        "n": 5,
+        "passes": 5,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR303",
+        "course_title": "Quality Improvement in Nursing Practice",
+        "n": 9,
+        "passes": 9,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR304",
+        "course_title": "Current Issues and Trends in Healthcare",
+        "n": 13,
+        "passes": 13,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "NUR305",
+        "course_title": "Population-Based Community Health",
+        "n": 8,
+        "passes": 8,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "SCI102",
+        "course_title": "Physiology w/lab",
+        "n": 5,
+        "passes": 5,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "PSY301",
+        "course_title": "Abnormal Psychology",
+        "n": 3,
+        "passes": 3,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "SCI201",
+        "course_title": "Microbiology w/Lab",
+        "n": 5,
+        "passes": 5,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "SCI210",
+        "course_title": "Pathophysiology",
+        "n": 3,
+        "passes": 3,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "SCI335",
+        "course_title": "Genetics",
+        "n": 5,
+        "passes": 5,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "SCI310",
+        "course_title": "Hematology and Immunology",
+        "n": 5,
+        "passes": 5,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "SCI435",
+        "course_title": "Molecular Genetics",
+        "n": 1,
+        "passes": 1,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      },
+      {
+        "course_no": "SOC300",
+        "course_title": "Cultural Diversity",
+        "n": 5,
+        "passes": 5,
+        "pass_rate": 1.0,
+        "fail_rate": 0.0
+      }
+    ],
+    "highest_failure_course": {
+      "course_no": "NUR155",
+      "course_title": "Transition and Review for Practical Nurses",
+      "fail_rate": 0.3765,
+      "n": 170
+    }
+  },
+  "gpa_trend_by_cohort": [
+    {
+      "entry_cohort": "Fall 2024",
+      "term": "Fall 2024",
+      "avg_gpa_points": 2.7684,
+      "n": 272
+    },
+    {
+      "entry_cohort": "Fall 2024",
+      "term": "Fall 2025",
+      "avg_gpa_points": 2.5,
+      "n": 106
+    },
+    {
+      "entry_cohort": "Fall 2024",
+      "term": "Spring 2025",
+      "avg_gpa_points": 2.4151,
+      "n": 212
+    },
+    {
+      "entry_cohort": "Fall 2024",
+      "term": "Spring 2026",
+      "avg_gpa_points": 2.5593,
+      "n": 59
+    },
+    {
+      "entry_cohort": "Fall 2024",
+      "term": "Summer 2025",
+      "avg_gpa_points": 2.1261,
+      "n": 111
+    },
+    {
+      "entry_cohort": "Fall 2024",
+      "term": "Summer 2026",
+      "avg_gpa_points": 2.4419,
+      "n": 43
+    },
+    {
+      "entry_cohort": "Fall 2025",
+      "term": "Fall 2025",
+      "avg_gpa_points": 2.7537,
+      "n": 272
+    },
+    {
+      "entry_cohort": "Fall 2025",
+      "term": "Spring 2026",
+      "avg_gpa_points": 2.5181,
+      "n": 166
+    },
+    {
+      "entry_cohort": "Fall 2025",
+      "term": "Summer 2026",
+      "avg_gpa_points": 2.7402,
+      "n": 127
+    },
+    {
+      "entry_cohort": "Spring 2025",
+      "term": "Fall 2025",
+      "avg_gpa_points": 2.3016,
+      "n": 189
+    },
+    {
+      "entry_cohort": "Spring 2025",
+      "term": "Spring 2025",
+      "avg_gpa_points": 2.6165,
+      "n": 339
+    },
+    {
+      "entry_cohort": "Spring 2025",
+      "term": "Spring 2026",
+      "avg_gpa_points": 2.5935,
+      "n": 123
+    },
+    {
+      "entry_cohort": "Spring 2025",
+      "term": "Summer 2025",
+      "avg_gpa_points": 2.424,
+      "n": 217
+    },
+    {
+      "entry_cohort": "Spring 2025",
+      "term": "Summer 2026",
+      "avg_gpa_points": 2.36,
+      "n": 75
+    },
+    {
+      "entry_cohort": "Spring 2026",
+      "term": "Spring 2026",
+      "avg_gpa_points": 2.5208,
+      "n": 144
+    },
+    {
+      "entry_cohort": "Spring 2026",
+      "term": "Summer 2026",
+      "avg_gpa_points": 2.5876,
+      "n": 97
+    },
+    {
+      "entry_cohort": "Summer 2025",
+      "term": "Fall 2025",
+      "avg_gpa_points": 2.3548,
+      "n": 155
+    },
+    {
+      "entry_cohort": "Summer 2025",
+      "term": "Spring 2026",
+      "avg_gpa_points": 2.4563,
+      "n": 103
+    },
+    {
+      "entry_cohort": "Summer 2025",
+      "term": "Summer 2025",
+      "avg_gpa_points": 2.6498,
+      "n": 217
+    },
+    {
+      "entry_cohort": "Summer 2025",
+      "term": "Summer 2026",
+      "avg_gpa_points": 2.2754,
+      "n": 69
+    },
+    {
+      "entry_cohort": "Summer 2026",
+      "term": "Summer 2026",
+      "avg_gpa_points": 2.9581,
+      "n": 191
+    }
+  ],
+  "attendance_by_term": {
+    "Fall 2024": {
+      "present": 7378,
+      "total_valid": 8037,
+      "rate": 0.918
+    },
+    "Fall 2025": {
+      "present": 8945,
+      "total_valid": 9877,
+      "rate": 0.9056
+    },
+    "Spring 2025": {
+      "present": 8449,
+      "total_valid": 9419,
+      "rate": 0.897
+    },
+    "Spring 2026": {
+      "present": 8839,
+      "total_valid": 9771,
+      "rate": 0.9046
+    },
+    "Summer 2025": {
+      "present": 8367,
+      "total_valid": 9250,
+      "rate": 0.9045
+    },
+    "Summer 2026": {
+      "present": 8745,
+      "total_valid": 9454,
+      "rate": 0.925
+    }
+  },
+  "attendance_by_program_stage": {
+    "1": 0.8859,
+    "2": 0.9089,
+    "3": 0.9297,
+    "4": 0.924
+  },
+  "completion_proxy_by_enroll_type": {
+    "Full-time (100%)": 0.2281,
+    "Half-time (50%)": 0.2436
+  },
+  "_archive_summary": {
+    "enrollment_files": 6,
+    "withdrawal_files": 6,
+    "gradebook_files": 1,
+    "attendance_files": 6,
+    "engagement_files": 6,
+    "engagement_rows_archived": 463,
+    "roster_rows": 808,
+    "roster_unique_students": 766
+  }
+}
