@@ -8,9 +8,12 @@ free, and restricted to the school's own staff.
 ## How it works (the 3-page flow)
 
 1. **Upload Data** -- a staff member picks a file (enrollment, withdrawal,
-   gradebook, attendance, or LMS engagement export). The system looks at its
-   column headers, guesses which type it is, and asks the staff member to
-   confirm before saving it into the permanent archive.
+   gradebook, attendance, LMS engagement, absenteeism hotspots, academic
+   performance, withdrawals before midterm, GPA trend, or ladder rate
+   export). They can optionally say which type it is if they already know
+   -- otherwise the system looks at its column headers, guesses which type
+   it is (and explains which dashboard numbers that type feeds), and asks
+   the staff member to confirm before saving it into the permanent archive.
 2. **Run Analysis** -- one button. It reprocesses *everything* in the
    archive (not just the newest file) and saves a fresh KPI result.
 3. **Dashboard** -- shows the KPI result from the last "Run Analysis" click.
@@ -107,14 +110,16 @@ a simulated two-user conflict during development.
 
 ### 5. Load the existing data
 
-The `data_archive/` folder in this repository already contains the first
-batch of real data (enrollment, withdrawal, gradebook, attendance, and LMS
-engagement exports collected on 2026-09-26) and its computed KPI output, so
-the dashboard has real numbers from the moment the app is deployed. From
-then on, staff only need to upload *new* files as they arrive -- the
-archive keeps growing, and clicking **Run Analysis** always reprocesses the
-whole thing (old files included), which is what correctly handles a student
-who, say, re-enrolled after withdrawing.
+The `data_archive/` folder in this repository already contains two batches
+of real data -- enrollment, withdrawal, gradebook, attendance, and LMS
+engagement exports collected 2026-09-26, plus absenteeism hotspots, academic
+performance, withdrawals-before-midterm, GPA trend, and ladder-rate exports
+collected 2026-10-01 -- and its computed KPI output, so the dashboard has
+real numbers from the moment the app is deployed. From then on, staff only
+need to upload *new* files as they arrive -- the archive keeps growing, and
+clicking **Run Analysis** always reprocesses the whole thing (old files
+included), which is what correctly handles a student who, say, re-enrolled
+after withdrawing.
 
 ## Data-quality note found while building this
 
@@ -140,6 +145,25 @@ more accurate than the first delivered prototype's** -- if that matters for
 anything already reported from the earlier numbers, it's worth knowing the
 later terms' withdrawal/attendance rates were previously overstated.
 
+A second, similar issue turned up in the 2026-10-01 batch's **GPA Trend**
+export: it repeated every course row for a student once per distinct
+historical "Enrolled Semester" value on that student's registration record,
+so students with multiple past re-enrollments or program changes had their
+entire course history duplicated 2-4 times over (1,406 of 6,080 rows --
+23%). This system collapses those back to one row per student/course/class
+date and separately works out each student's true entry cohort as the
+earliest cohort label on any of their own rows, rather than trusting
+whichever duplicate happens to survive. See the dashboard's Documentation
+page for the full writeup.
+
+Official registrar term dates (Fall 2024 through Summer 2026) were also
+adopted in the 2026-10-01 batch in place of the originally inferred
+calendar, now that Felbry has provided them -- every term-bucketing
+calculation in the system (withdrawal timing, attendance terms, GPA terms,
+midterm-withdrawal flags) uses these exact dates. Date-inference is kept
+only as an automatic fallback for any future term uploaded before its
+official dates are available.
+
 ## Project layout
 
 ```
@@ -158,13 +182,19 @@ data_archive/kpi_output/     The last computed KPI result (what the dashboard re
 
 ## A note on testing
 
-This app's Python logic (file detection, the KPI pipeline, the GitHub sync
-retry behavior, and the dashboard's HTML/JS after fresh data is injected)
-was all tested directly and passed, including against the real 2026-09-26
-data batch and a simulated two-staff-member concurrent upload. The
-Streamlit framework itself could not be installed or run in the environment
-this was built in (its network access is restricted), so the page layouts
-and Streamlit-specific widgets have not been visually verified end-to-end.
-After deploying, click through all three pages once with a small test file
-to confirm everything looks right, and check the app's deploy logs on
-Streamlit Cloud if anything doesn't come up as expected.
+This app's Python logic (file detection across all 10 data types, the KPI
+pipeline, the GitHub sync retry behavior, and the dashboard's HTML/JS after
+fresh data is injected) was all tested directly and passed, including
+against both real data batches (2026-09-26 and 2026-10-01) and a simulated
+two-staff-member concurrent upload. File-type detection was verified against
+all 45 real files across all 10 types with zero misclassifications. The
+rendered dashboard was also checked end-to-end with a real browser
+(Playwright) after the 2026-10-01 refresh, clicking through the Academic,
+Retention, and Documentation pages and confirming no console/JS errors and
+correct numbers. The Streamlit framework itself could not be installed or
+run in the environment this was built in (its network access is
+restricted), so the page layouts and Streamlit-specific widgets have not
+been visually verified end-to-end. After deploying, click through all three
+pages once with a small test file to confirm everything looks right, and
+check the app's deploy logs on Streamlit Cloud if anything doesn't come up
+as expected.

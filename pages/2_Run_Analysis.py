@@ -41,7 +41,11 @@ else:
         icon="⚠️",
     )
 
-ARCHIVE_TYPES = ["enrollment", "withdrawal", "gradebook", "attendance", "engagement"]
+ARCHIVE_TYPES = [
+    "enrollment", "withdrawal", "gradebook", "attendance", "engagement",
+    "absenteeism_hotspots", "academic_performance", "midterm_withdrawals",
+    "gpa_trend", "ladder_rate",
+]
 KPI_PATH = os.path.join("data_archive", "kpi_output", "REAL_DATA.json")
 
 
@@ -54,9 +58,12 @@ def _counts():
 
 st.subheader("What's currently in the archive")
 counts = _counts()
-cols = st.columns(len(ARCHIVE_TYPES))
-for col, (t, n) in zip(cols, counts.items()):
-    col.metric(t.title(), n)
+items = list(counts.items())
+row_size = 5
+for i in range(0, len(items), row_size):
+    cols = st.columns(row_size)
+    for col, (t, n) in zip(cols, items[i:i + row_size]):
+        col.metric(t.replace("_", " ").title(), n)
 
 if sum(counts.values()) == 0:
     st.info("The archive is empty. Go to **Upload Data** first.")

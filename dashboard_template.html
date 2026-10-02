@@ -372,8 +372,8 @@
       <li class="nav-item" data-page="equity"><span class="nav-icon">&#9878;</span>Demographics &amp; Equity</li>
       <li class="nav-item" data-page="documentation"><span class="nav-icon">&#128203;</span>Documentation</li>
     </ul>
-    <div class="sidebar-foot">
-      Prototype v0.2 &middot; real data batch: 2026-09-26<br>
+    <div class="sidebar-foot" id="sidebarFoot">
+      Prototype v0.2 &middot; data last analyzed: &hellip;<br>
       &#9679; green = real data &nbsp; &#9679; amber = pending/demo
     </div>
   </aside>
@@ -417,15 +417,20 @@ const DELIVERY  = ['All Modes','On-Ground','Online','Hybrid'];
 const state = { program: 'All Programs', term: 'Fall 2026', campus: 'All Campuses', delivery: 'All Modes' };
 
 /* =========================================================================
-   REAL UPLOADED DATA  (batch: 2026-09-26)
+   REAL UPLOADED DATA -- always overwritten by the latest "Run Analysis" pass
+   (analysis/render_dashboard.py replaces this whole object with the current
+   data_archive/kpi_output/REAL_DATA.json whenever the app embeds this page).
    Computed from institutional exports (enrollment/withdrawal rosters,
-   gradebook, attendance logs) -- see the Documentation page in the sidebar
-   for exactly how each figure below is calculated, including assumptions.
-   Anything NOT read from this object is still demo/mock data, pending a
-   future data batch that can answer it (flagged with an amber dot in the UI).
+   gradebook, academic performance, attendance, absenteeism, GPA trend,
+   midterm-withdrawal, and ladder-rate data) -- see the Documentation page in
+   the sidebar for exactly how each figure below is calculated, including
+   assumptions. Anything NOT read from this object is still demo/mock data,
+   pending a future data batch that can answer it (flagged with an amber dot
+   in the UI). The static placeholder values below are only ever seen if
+   this file is opened directly, outside the Streamlit app.
 ========================================================================= */
 const REAL_DATA = {
-  "generated_from_batch": "2026-09-26",
+  "generated_at": "2026-09-26 00:00 UTC",
   "term_order": [
     "Fall 2024",
     "Spring 2025",
@@ -1789,6 +1794,7 @@ function heatmap(rowLabels, colLabels, values, seqSteps){
     html += `<div class="heat-row-label">${rl}</div>`;
     colLabels.forEach((cl,ci)=>{
       const v = values[ri][ci];
+      if(v==null){ html += `<div class="heat-cell" style="background:var(--surface-1);color:var(--text-muted);border:1px dashed var(--border)">—</div>`; return; }
       const step = seqSteps[Math.min(seqSteps.length-1, Math.floor(v*seqSteps.length))];
       html += `<div class="heat-cell" style="background:${step}">${Math.round(v*100)}</div>`;
     });
@@ -2064,11 +2070,11 @@ function pageAcademic(){
     ${chartCard({id:'acAttendStage', title:'Attendance Rate by Program Stage', sub:'Stage 1 = first term in program, pooled across all uploaded terms', status:'real',
       tableHeaders:['Stage','Attendance'], tableRows: realAttendStageTable()})}
     <div class="card">
-      <div class="card-title">${statusDot('pending')}Absenteeism Hotspots</div>
-      <div class="card-sub" style="margin-bottom:10px;">Attendance rate by course &times; program stage (darker = lower attendance)</div>
-      ${heatmap(['Sem 1','Sem 2','Sem 3','Sem 4'], ['Fundamentals','Med-Surg','Pharm','Maternal-NB'], attendHeatmapData(), seqSteps())}
-      <div class="legend-row"><span>Lower attendance</span><span style="flex:1;text-align:right;">Higher attendance</span></div>
-      <div class="footnote" style="margin-top:8px;">Pending: the uploaded attendance logs don't include a course/section field, so attendance can't yet be cross-tabbed by course.</div>
+      <div class="card-title">${statusDot('real')}Absenteeism Hotspots</div>
+      <div class="card-sub" style="margin-bottom:10px;">Absence rate by class &times; program stage, top 8 classes by absence rate (darker = more absence), cells with ${MIN_N_FOR_HOTSPOT_CELL}+ sessions only</div>
+      ${heatmap(absenteeismHeatmapRows(), ['Stage 1','Stage 2','Stage 3','Stage 4'], absenteeismHeatmapData(), seqSteps())}
+      <div class="legend-row"><span>Lower absence</span><span style="flex:1;text-align:right;">Higher absence</span></div>
+      <div class="footnote" style="margin-top:8px;">"—" means fewer than ${MIN_N_FOR_HOTSPOT_CELL} attendance sessions recorded for that class at that stage, not necessarily zero absences.</div>
     </div>
   </div>
   `;
@@ -2120,10 +2126,28 @@ function realGpaTable(){
 function realAttendStageTable(){
   return Object.entries(REAL_DATA.attendance_by_program_stage).sort((a,b)=>a[0]-b[0]).map(([k,v])=>['Stage '+k, pct(v)]);
 }
-function attendHeatmapData(){
-  const rows=4, cols=4; const out=[];
-  for(let r=0;r<rows;r++){ const row=[]; for(let c=0;c<cols;c++){ row.push(metric('heat'+r+'_'+c,{base:.7+r*.05-c*.02, spread:.1, min:.4,max:.98})); } out.push(row); }
-  return out;
+const MIN_N_FOR_HOTSPOT_CELL = 5;
+function absenteeismHeatmapRows(){
+  const rows = REAL_DATA.absenteeism_hotspots || [];
+  const agg = {};
+  rows.forEach(r=>{
+    agg[r.class_name] = agg[r.class_name] || {num:0, den:0};
+    agg[r.class_name].num += r.n * r.absence_rate;
+    agg[r.class_name].den += r.n;
+  });
+  return Object.entries(agg)
+    .filter(([,a])=>a.den>=20)
+    .sort((a,b)=>(b[1].num/b[1].den)-(a[1].num/a[1].den))
+    .slice(0,8)
+    .map(([name])=>name);
+}
+function absenteeismHeatmapData(){
+  const classes = absenteeismHeatmapRows();
+  const rows = REAL_DATA.absenteeism_hotspots || [];
+  return classes.map(cls => [1,2,3,4].map(stage=>{
+    const cell = rows.find(r=>r.class_name===cls && r.stage===stage);
+    return cell ? cell.absence_rate : null;
+  }));
 }
 function seqSteps(){ return [css('--seq-700'),css('--seq-600'),css('--seq-500'),css('--seq-400'),css('--seq-300'),css('--seq-200')].reverse(); }
 
@@ -2134,7 +2158,8 @@ function pageRetention(){
   const t = tokens();
   const rRet = realRetention(state.term);
   const rWd = realWithdrawal(state.term);
-  const ladder = metric('ladder',{base:.46,spread:.06,min:.2,max:.75});
+  const mw = REAL_DATA.midterm_withdrawals;
+  const lr = REAL_DATA.ladder_rate;
 
   const retSub = (rRet.isFallback?realTermNote(state.term)+' — ':'') + (rRet.programNarrowed? state.program+' only' : rRet.insufficientProgramData? 'School-wide (insufficient '+state.program+' sample)':'All programs');
   const wdSub = (rWd.isFallback?realTermNote(state.term):rWd.resolvedTerm) + (state.program!=='All Programs'?' (school-wide)':'');
@@ -2143,26 +2168,25 @@ function pageRetention(){
   <div class="grid grid-4">
     ${statTile('Retention Rate', rRet.value!=null?pct(rRet.value):'—', null, null, retSub, null, 'real')}
     ${statTile('Withdrawal Rate', rWd.value!=null?pct(rWd.value):'—', null, null, wdSub, null, 'real')}
-    ${statTile('Withdrawals Before Midterm', '—', null, null, 'Pending: needs official registrar midterm dates', null, 'pending')}
-    ${statTile('PN→ADN→BSN Ladder Rate', pct(ladder), null, null, 'Re-enrollment within 12 months', null, 'pending')}
+    ${statTile('Withdrawals Before Midterm', mw?pct(mw.rate_before_midterm):'—', null, null, mw?('All uploaded terms, n='+mw.total+' course withdrawals'):'No data', null, 'real')}
+    ${statTile('PN→AAS→BSN Ladder Rate', lr?pct(lr.rate):'—', null, null, lr?('n='+lr.pn_origin_n+' PN-origin students'):'No data', null, 'real')}
   </div>
 
   <div class="section-title">Persistence over time</div>
   <div class="grid grid-2">
     ${chartCard({id:'retTrend', title:'Retention Rate by Program', sub:'All uploaded term-pairs, ADN &amp; PN shown (BSN/RN-to-BSN cohorts too small to trend reliably)', height:'chart-wrap tall',
       tableHeaders:['Transition','ADN','PN'], tableRows: realRetByProgramTable(), status:'real'})}
-    ${chartCard({id:'retTiming', title:'Withdrawal Timing', sub:'Share of term-withdrawals by week', height:'chart-wrap tall',
-      tableHeaders:['Week','Withdrawals'], tableRows: wdTimingTable(), status:'pending'})}
+    ${chartCard({id:'retTiming', title:'Withdrawals Before vs. After Midterm', sub:'Course-withdrawal events by term (W = before, WP/WF = after)', height:'chart-wrap tall',
+      tableHeaders:['Term','Before midterm','After midterm'], tableRows: wdTimingTable(), status:'real'})}
   </div>
 
   <div class="section-title">Root causes &amp; pipeline</div>
   <div class="grid grid-2">
     ${chartCard({id:'retReasons', title:'Withdrawal Reason Breakdown', sub:(rWd.isFallback?realTermNote(state.term):rWd.resolvedTerm)+' — all programs, pooled', status:'real',
       tableHeaders:['Reason','Count'], tableRows: realWdReasonTable()})}
-    ${chartCard({id:'retLadder', title:'Program-Ladder Progression', sub:'PN &rarr; ADN &rarr; BSN, most recent completers', status:'pending',
-      tableHeaders:['Stage','Students'], tableRows: ladderTable()})}
+    ${chartCard({id:'retLadder', title:'PN → AAS/ADN → BSN Ladder Progression', sub:'Of students whose first program registration was Practical Nursing', status:'real',
+      tableHeaders:['Outcome','Students'], tableRows: ladderTable()})}
   </div>
-  <div class="footnote">Pending: PN&rarr;ADN&rarr;BSN ladder rate isn't reliably computable from this batch — students who changed programs in the roster look identical to students genuinely laddering up, so this would overstate true program progression. See Documentation for detail.</div>
   `;
   document.getElementById('pageContent').innerHTML = html;
 
@@ -2173,10 +2197,13 @@ function pageRetention(){
       {label:'PN', data:pnSeries, borderColor:t.s3, tension:.3, borderWidth:2, pointRadius:2, spanGaps:true},
     ]}, options: baseChartOptions(true) });
 
-  const weeks = ['Wk 1-4','Wk 5-8','Wk 9 (midterm)','Wk 10-13','Wk 14-16'];
-  const wv = [0.18,0.30,0.20,0.20,0.12].map((v,i)=>Math.round(v*100*(0.9+jitter('wdw'+i,.2))));
-  mkChart('retTiming', { type:'bar', data:{ labels:weeks, datasets:[{ data:wv, backgroundColor: weeks.map((w,i)=> i<=2?t.warn:t.s1), borderRadius:4, maxBarThickness:60 }] },
-    options:{ ...baseChartOptions(false), plugins:{...baseChartOptions(false).plugins, legend:{display:false}} } });
+  const mwByTerm = (mw && mw.by_term) || {};
+  const mwBefore = REAL_DATA.term_order.map(term=> mwByTerm[term] ? mwByTerm[term].before_midterm : 0);
+  const mwAfter = REAL_DATA.term_order.map(term=> mwByTerm[term] ? mwByTerm[term].after_midterm : 0);
+  mkChart('retTiming', { type:'bar', data:{ labels:REAL_DATA.term_order, datasets:[
+      {label:'Before midterm', data:mwBefore, backgroundColor:t.s1, borderRadius:4, maxBarThickness:48},
+      {label:'After midterm', data:mwAfter, backgroundColor:t.warn, borderRadius:4, maxBarThickness:48},
+    ]}, options:{ ...baseChartOptions(true), scales:{...baseChartOptions(true).scales, x:{...baseChartOptions(true).scales.x, stacked:true}, y:{...baseChartOptions(true).scales.y, stacked:true}} } });
 
   const reasonTerm = resolveRealTerm(state.term).term;
   const reasonDict = REAL_DATA.withdrawal_reasons_by_term[reasonTerm] || {};
@@ -2184,10 +2211,9 @@ function pageRetention(){
   mkChart('retReasons', { type:'bar', data:{ labels:reasonEntries.map(([r])=>r), datasets:[{ data:reasonEntries.map(([,v])=>v), backgroundColor:t.s7, borderRadius:4 }] },
     options:{ ...baseChartOptions(false), indexAxis:'y', plugins:{...baseChartOptions(false).plugins, legend:{display:false}} } });
 
-  const stages = ['PN Graduates','Enrolled in ADN','ADN Graduates','Enrolled in BSN'];
-  const base = 220;
-  const sv = [base, base*ladder, base*ladder*0.92, base*ladder*0.92*0.55].map(Math.round);
-  mkChart('retLadder', { type:'bar', data:{ labels:stages, datasets:[{ data:sv, backgroundColor:[t.s3,t.s3+'bb',t.s1,t.s1+'bb'], borderRadius:4 }] },
+  const ladderLabels = ['PN-origin students','Reached AAS/ADN or higher','Reached BSN'];
+  const ladderVals = lr ? [lr.pn_origin_n, lr.reached_aas_n, lr.reached_bsn_n] : [0,0,0];
+  mkChart('retLadder', { type:'bar', data:{ labels:ladderLabels, datasets:[{ data:ladderVals, backgroundColor:[t.s3,t.s1,t.s2], borderRadius:4 }] },
     options:{ ...baseChartOptions(false), indexAxis:'y', plugins:{...baseChartOptions(false).plugins, legend:{display:false}} } });
 }
 function realRetByProgramTable(){
@@ -2203,11 +2229,22 @@ function realWdReasonTable(){
   const reasonDict = REAL_DATA.withdrawal_reasons_by_term[reasonTerm] || {};
   return Object.entries(reasonDict).sort((a,b)=>b[1]-a[1]).map(([r,v])=>[r, v]);
 }
-function wdTimingTable(){ const weeks=['Wk 1-4','Wk 5-8','Wk 9 (midterm)','Wk 10-13','Wk 14-16']; const wv=[0.18,0.30,0.20,0.20,0.12]; return weeks.map((w,i)=>[w, Math.round(wv[i]*100*(0.9+jitter('wdw'+i,.2)))+'%']); }
+function wdTimingTable(){
+  const mw = REAL_DATA.midterm_withdrawals;
+  const byTerm = (mw && mw.by_term) || {};
+  return REAL_DATA.term_order.map(term=>{
+    const row = byTerm[term];
+    return [term, row?row.before_midterm:0, row?row.after_midterm:0];
+  });
+}
 function ladderTable(){
-  const ladder = metric('ladder',{base:.46,spread:.06,min:.2,max:.75});
-  const base=220; const sv=[base, base*ladder, base*ladder*0.92, base*ladder*0.92*0.55].map(Math.round);
-  return [['PN Graduates',sv[0]],['Enrolled in ADN',sv[1]],['ADN Graduates',sv[2]],['Enrolled in BSN',sv[3]]];
+  const lr = REAL_DATA.ladder_rate;
+  if(!lr) return [];
+  return [
+    ['PN-origin students', lr.pn_origin_n],
+    ['Reached AAS/ADN or higher', lr.reached_aas_n],
+    ['Reached BSN', lr.reached_bsn_n],
+  ];
 }
 
 /* =========================================================================
@@ -2442,17 +2479,26 @@ const METHODOLOGY = [
     source:'Withdrawn Data files, "Withdrawal Reason" column',
     calc:'Count of each distinct reason value in the selected term’s file (blank/missing recorded as "Not stated"). Pooled across all programs.' },
   { kpi:'Avg. Course Pass Rate / Highest Failure Rate / Course Pass Rate ranked', pages:'Overview, Academic',
-    source:'GRADEBOOK_COURSE_FAILURE_DATA.csv (4,683 rows)',
+    source:'Academic Performance Rate Data (6 files, Fall 2024 – Summer 2026) — now the authoritative source for these three metrics per Felbry’s own methodology doc; superseded Gradebook, which is still archived (deduped by student/course/class-start) and kept available for a future Score-based At-Risk Students metric.',
     calc:'Pass = grade A/B/C/S; Fail = F/WF/U; all other grades (W, WP, WV, blanks, in-progress) excluded as not a completed outcome. Pass rate = passes ÷ (passes+fails), grouped by Course Number. "Highest Failure Rate" is the worst pass-rate course among those with ≥15 graded attempts (courses below that are too small to trust — several have n=1).' },
   { kpi:'GPA Trend by Entry Cohort', pages:'Academic',
-    source:'Gradebook + master roster (for each student’s entry cohort)',
-    calc:'Grade-to-GPA-point mapping (a documented assumption, pending the institution’s official scale): A=4.0, B=3.0, C=2.0, F=0.0 (no D grades appear in this data). Each graded row is bucketed into one of the 6 uploaded terms by its Class Start Date. Averaged per (entry cohort × term); a cell is shown only with ≥3 graded records, and rows dated before a student’s own entry cohort are dropped (a small number of gradebook rows carry a shared class-section date that predates when that student actually joined it).' },
+    source:'GPA Trend by Cohort Data (dedicated extract: Student ID, Course Number, Course Title, Credit, Grade Point, Grade Title, Class Start Date, Enrolled Semester)',
+    calc:'Felbry’s formula: Term GPA = (sum of Grade Points) ÷ (sum of Credits) for each student in each term, using only Pass/Fail-classified rows (same Pass/Fail rule as Course Pass Rate above — a plain withdrawal or in-progress row carries no real grade and would wrongly drag the average down). Each student’s own true entry cohort is their earliest Enrolled Semester value (see the data-quality finding below for why this has to be computed rather than read off any one row). Those per-student Term GPAs are then averaged within each (entry cohort × term) cell; a cell is shown only with ≥3 students. Cohorts go as far back as Fall 2017 — these are long-enrolled students who are still taking courses in the current analysis window, and Felbry’s own guidance was explicit not to strip them out.' },
   { kpi:'Avg. Attendance Rate (overall, by term)', pages:'Overview, Academic',
     source:'6 Attendance Data files (per-session logs)',
     calc:'"Present-type" = Present, Tardy/Late, Tardy/Late excused. "No class" rows are excluded (session didn’t run). Rate = present-type rows ÷ all non-"No class" rows, for the selected/resolved term. Not yet broken out by Program.' },
   { kpi:'Attendance Rate by Program Stage', pages:'Academic',
     source:'Attendance Data files + master roster',
     calc:'Each student’s "stage" in a given term = (that term’s position in the 6-term calendar) − (their entry term’s position) + 1, i.e. Stage 1 = their first term in the program. Attendance rate computed per stage (1–4), pooled across all students and terms.' },
+  { kpi:'Absenteeism Hotspots', pages:'Academic',
+    source:'Absenteeism Hotspots Data (6 files): Student ID, Attendance Type, Attendance Date, Class Name',
+    calc:'Same present/absent and "No class" rules as Avg. Attendance Rate, and the same program-stage derivation as Attendance Rate by Program Stage, but cross-tabbed by Class Name instead of pooled. Absence rate = 1 − (present-type rows ÷ valid rows) for each (Class, Stage) cell; a cell is only shown with ≥5 sessions. The heatmap shows the 8 classes with the highest overall absence rate among those with at least 20 total sessions recorded.' },
+  { kpi:'Withdrawals Before Midterm', pages:'Retention',
+    source:'Withdrawals Before Midterm Data (6 files): Grade Title, Course Number, Class Start Date, Class End Date — no student ID, so each row is one course-withdrawal EVENT, not a unique student',
+    calc:'Grade "W" = withdrew before the course’s midterm point; "WP" or "WF" = withdrew after. This sidesteps needing one midpoint date that would have to work across 8-week, second-8-week, and full-semester courses alike. Rate = before-midterm events ÷ (before + after), overall and by term (term derived from Class Start Date against the official registrar calendar). No dedup is applied to this file — see the data-quality note below for why.' },
+  { kpi:'PN → AAS/ADN → BSN Ladder Rate', pages:'Retention',
+    source:'PN-AAS-BSN Ladder Rate Data: Student ID, Program, Registration Status, Start Date, Grad./Withdraw Date, Enrolled Semester (full historical Program Registration records, not limited to Fall 2024–Summer 2026)',
+    calc:'Felbry’s methodology doc establishes that the same Student ID recurs across program registrations (confirmed: 286 of 3,188 students appear under more than one Program value) but stops short of a final formula, so this uses the most direct reading of "ladder rate": among students whose EARLIEST program registration (by Start Date) was Practical Nursing, what share also registered, at any later date, in a higher rung — Associate of Applied Science in Nursing / "One + One" / Registered Nursing (AAS/ADN), or Bachelor of Science in Nursing / RN-to-BSN Completion (BSN)? A single "AASN PN-Test" row is treated as a junk record and excluded.' },
   { kpi:'Full-Time vs. Part-Time (Equity)', pages:'Demographics & Equity',
     source:'Master roster, "Enroll Type" column (Full-time 100% / Half-time 50%) + retention reconstruction',
     calc:'Term-to-term retention rate computed separately for each Enroll Type, pooled across all 5 term transitions (same methodology as Term-to-Term Retention, split by group instead of program).' },
@@ -2465,9 +2511,6 @@ const PENDING_ITEMS = [
   { kpi:'Faculty late submissions / Faculty workload / Course evaluations / Room utilization', pages:'Overview, Faculty', reason:'No faculty roster, timeliness log, evaluation, or facilities-booking data has been uploaded.' },
   { kpi:'Applications / Admissions funnel / Exam scores / Waitlist / Section fill rate', pages:'Enrollment', reason:'This batch has enrollment and withdrawal records but nothing upstream of enrollment (inquiries, applications, admissions exam scores, waitlists) or course-capacity data.' },
   { kpi:'Completion Rate (accreditation-style) / Job Placement Rate / Clinical Hours Completion / Time-to-Degree', pages:'Clinical', reason:'No graduation-audit, employment-outcomes, clinical-hours-logging, or program-length-tracking data has been uploaded. (A rough "graduate share of resolved enrollment spells" proxy was computed during analysis but is not shown — it is not equivalent to a real completion-rate calculation and risks being misread as one.)' },
-  { kpi:'Withdrawals Before Midterm / Withdrawal Timing by week', pages:'Retention', reason:'Would require official registrar midterm dates. We already had to infer approximate term start/end boundaries from the data; stacking a week-by-week estimate on top of that inferred calendar was judged too speculative to present as a real figure.' },
-  { kpi:'PN→ADN→BSN Ladder Rate / Program-Ladder Progression', pages:'Retention', reason:'31 students show multiple Program values across files, but these look like pre-completion program switches, not genuine sequential laddering — there isn’t a reliable way to distinguish the two in this data.' },
-  { kpi:'Absenteeism Hotspots (course × stage)', pages:'Academic', reason:'The attendance logs have no course/section field, so attendance can’t be cross-tabbed by course.' },
   { kpi:'Continuing-Gen vs. First-Gen, Employment status, HS Diploma vs. GED, Age Band, Barrier Flags', pages:'Demographics & Equity', reason:'None of these fields exist anywhere in the uploaded data.' },
   { kpi:'On-Ground vs. Online Delivery (Equity)', pages:'Demographics & Equity', reason:'Method of Delivery is present, but 804 of 808 roster rows are "Residential" — not enough variation to produce a meaningful comparison yet.' },
 ];
@@ -2475,7 +2518,7 @@ function pageDocumentation(){
   const html = `
   <div class="section-note">This page is the data-governance record for the dashboard: for every metric currently marked <b>green</b> (wired to real uploaded data), exactly which files and columns feed it and how it’s calculated; and for every metric still <b>amber</b> (pending/demo), exactly what’s missing. As new data batches are uploaded, more rows move from the pending list into the methodology table below — nothing here changes retroactively without a documented reason.</div>
 
-  <div class="section-title">${statusDot('real')}Methodology — metrics wired to real data (batch: 2026-09-26)</div>
+  <div class="section-title">${statusDot('real')}Methodology — metrics wired to real data (batches: 2026-09-26, 2026-10-01)</div>
   <div class="card">
     <div class="table-scroll"><table class="data-table doc-table">
       <thead><tr><th style="width:22%">KPI / Chart</th><th style="width:12%">Dashboard page(s)</th><th style="width:66%">Source data &amp; calculation</th></tr></thead>
@@ -2496,7 +2539,25 @@ function pageDocumentation(){
     <div style="font-size:13px;line-height:1.7;color:var(--text-secondary);">
       The 6 "Enrollment Data" files each represent one entry cohort (every row shares that file’s own Start Date), not a snapshot of everyone active in that term — so a continuing student is never re-listed under a later term’s file. Reading "Registration Status = Enrolled" straight off one file (the original plan) would have badly undercounted every term except the most recent one, and matching student IDs across files to measure retention would show almost no overlap (we measured 6/101 between Fall 2024 and Spring 2025, and 0/182 between Spring 2026 and Summer 2026) purely because of this file structure, not because retention is actually that low.
       <br><br>
-      <b>Fix applied:</b> all 6 files were combined into one master roster of enrollment "spells" (Start Date through Grad./Withdraw Date), a 6-term calendar was inferred from the data itself, and a student counts as active in a term if their spell overlaps that term’s window. This is what makes Total Enrollment, Enrollment by Program, Program Mix, and Term-to-Term Retention possible from this data at all — but it does mean term boundaries are an inference, not an official registrar calendar, which is why we did not layer a further week-by-week estimate on top of it for Withdrawal Timing.
+      <b>Fix applied:</b> all 6 files were combined into one master roster of enrollment "spells" (Start Date through Grad./Withdraw Date), a 6-term calendar was inferred from the data itself, and a student counts as active in a term if their spell overlaps that term’s window. This is what makes Total Enrollment, Enrollment by Program, Program Mix, and Term-to-Term Retention possible from this data at all.
+      <br><br>
+      <b>Update (2026-10-01 batch):</b> that inferred calendar has now been replaced with Felbry’s own official registrar term dates for all 6 uploaded terms (Fall 2024 through Summer 2026) — every term boundary used above is now an official date, not an estimate. Inference is kept only as a fallback for any future term uploaded before its official dates are available.
+    </div>
+  </div>
+
+  <div class="section-title" style="margin-top:22px;">Key data-quality finding: GPA Trend export duplicates each student’s course history per historical registration record</div>
+  <div class="card">
+    <div style="font-size:13px;line-height:1.7;color:var(--text-secondary);">
+      The GPA Trend by Cohort extract turned out to repeat every course row for a student once per distinct "Enrolled Semester" value anywhere in that student’s registration history — a student with 3 historical Program Registration records (say, Summer 2020, Fall 2017, and Fall 2024, from past re-enrollments or program changes) shows their entire course history 3 times over, identical in every column except which of those 3 cohort labels is attached. Across the full file, 1,406 of 6,080 rows (23%) were exact duplicates of this kind. Taken at face value, this would have both overstated how many course records exist and, worse, scattered a single real entry cohort’s worth of grades across multiple phantom cohorts in the chart.
+      <br><br>
+      <b>Fix applied:</b> rows are first collapsed to one per (student, course, class date) — credit, grade, and grade point are identical across the duplicated copies, so which copy survives doesn’t matter. Separately, each student’s TRUE entry cohort is computed as the chronologically earliest Enrolled Semester value found anywhere in their own rows, and that single cohort is then applied to all of that student’s (now de-duplicated) course records. This is also why GPA Trend by Cohort no longer depends on the enrollment roster’s own entry-cohort field: a long-enrolled student can have real coursework in the current analysis window without an enrollment file covering their original entry term.
+    </div>
+  </div>
+
+  <div class="section-title" style="margin-top:22px;">A note on Withdrawals Before Midterm: no student ID, so no dedup</div>
+  <div class="card">
+    <div style="font-size:13px;line-height:1.7;color:var(--text-secondary);">
+      Every other uploaded file type is de-duplicated against re-uploads and overlapping exports by matching on Student ID (see the finding above, and the original overlapping-exports fix from the first batch). The Withdrawals Before Midterm extract has no Student ID column at all — by design, it's a list of course-withdrawal events (Grade Title, Course Number, Class Start Date, Class End Date). That means two different students who withdrew from the same course on the same dates with the same grade would look like an identical row, so applying the same kind of row-level dedup here could silently discard a real second withdrawal. This file is intentionally NOT deduplicated; if a term's file ever needs correcting, replace it in the archive rather than uploading a second, overlapping one for the same term.
     </div>
   </div>
   `;
@@ -2533,6 +2594,11 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     document.getElementById('pageContent').scrollIntoView({behavior:'instant', block:'start'});
   });
 });
+
+const sidebarFootEl = document.getElementById('sidebarFoot');
+if (sidebarFootEl && REAL_DATA.generated_at) {
+  sidebarFootEl.innerHTML = `Prototype v0.2 &middot; data last analyzed: ${REAL_DATA.generated_at}<br>&#9679; green = real data &nbsp; &#9679; amber = pending/demo`;
+}
 
 renderPage('overview');
 </script>

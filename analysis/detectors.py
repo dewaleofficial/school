@@ -7,9 +7,18 @@ candidate types are too close to call, or nothing scores highly enough, we
 tell the staff member we're not sure rather than silently guessing wrong --
 a wrong guess here would quietly corrupt every KPI downstream.
 
-Known dataset types, as observed in the school's actual exports (2026-09-26
-batch): enrollment rosters, withdrawal extracts, the gradebook, attendance
-logs, and LMS (Canvas) engagement exports.
+Known dataset types, as observed in the school's actual exports: enrollment
+rosters, withdrawal extracts, the gradebook, attendance logs, LMS (Canvas)
+engagement exports (2026-09-26 batch), plus five more added in the
+2026-10-01 batch -- absenteeism hotspots, academic performance (course
+pass/fail by grade), midterm-withdrawal flags, GPA-by-cohort trend data,
+and the PN-AAS-BSN ladder-progression extract. Several of the newer types
+have column sets that are a strict subset or near-subset of an older type's
+(e.g. "withdrawals before midterm" is a 4-column slice of what's already in
+gradebook/academic performance, and the ladder-rate extract is a 6-column
+slice of withdrawal). Each such pair gets an explicit `required_any_of` /
+`exclude_any_of` gate below so the single column that's actually unique to
+one side of the pair decides it, rather than relying on raw overlap counts.
 """
 from __future__ import annotations
 
@@ -39,17 +48,56 @@ SIGNATURES = {
         "exclude_any_of": [
             {"student first name", "campus", "method of delivery", "enroll type"}
         ],
+        # Must actually have a reason column -- the ladder-rate extract is a
+        # same-shaped subset of this file that's missing exactly this one
+        # column, so without this gate the two are nearly indistinguishable.
+        "required_any_of": [{"withdrawal reason"}],
     },
     "gradebook": {
         "core": {"student id number", "grade title", "score", "course number", "course title",
                  "class start date"},
+        # "Academic Performance Rate" exports carry every gradebook column
+        # except the numeric score, so require it explicitly.
+        "required_any_of": [{"score"}],
     },
     "attendance": {
         "core": {"student id number", "attendance type", "attendance date"},
+        # Must NOT also have a class name -- that's the absenteeism-hotspots
+        # export, which is this file plus one extra column.
+        "exclude_any_of": [{"class name"}],
     },
     "engagement": {
         "core": {"name", "sis user id", "participations count", "pageviews count",
                  "most recent access date"},
+    },
+    "absenteeism_hotspots": {
+        "core": {"student id number", "attendance type", "attendance date", "class name"},
+        "required_any_of": [{"class name"}],
+    },
+    "academic_performance": {
+        "core": {"student id number", "course number", "course title", "class name",
+                 "class start date", "class end date", "grade title"},
+        # Must NOT have a numeric score -- that's the gradebook file, which
+        # is this file plus the score column.
+        "exclude_any_of": [{"score"}],
+    },
+    "midterm_withdrawals": {
+        "core": {"grade title", "course number", "class start date", "class end date"},
+        # This file's 4 columns are a literal subset of gradebook's and of
+        # academic performance's -- but uniquely, it has no student ID at
+        # all (it's a course-withdrawal-event list, not a per-student roster).
+        "exclude_any_of": [{"student id number"}],
+    },
+    "gpa_trend": {
+        "core": {"student id number", "course number", "course title", "credit", "grade point",
+                 "grade title", "class start date", "enrolled semester"},
+    },
+    "ladder_rate": {
+        "core": {"student id number", "program", "registration status", "start date",
+                 "grad./ withdraw date", "enrolled semester"},
+        # Must NOT have a withdrawal reason -- that's a real withdrawal
+        # extract, which is this file plus that one column.
+        "exclude_any_of": [{"withdrawal reason"}],
     },
 }
 
@@ -59,6 +107,26 @@ TYPE_LABELS = {
     "gradebook": "Gradebook / course grades",
     "attendance": "Attendance log",
     "engagement": "LMS (Canvas) engagement export",
+    "absenteeism_hotspots": "Absenteeism hotspots (attendance by class)",
+    "academic_performance": "Academic performance rate data",
+    "midterm_withdrawals": "Withdrawals before midterm",
+    "gpa_trend": "GPA trend by cohort",
+    "ladder_rate": "PN-AAS-BSN ladder progression",
+}
+
+# What each type feeds, shown to staff after a confident detection so they
+# know the upload actually did something besides "save a file".
+TYPE_FEEDS = {
+    "enrollment": "program enrollment counts, retention rate, and the entry-cohort roster used by several other KPIs.",
+    "withdrawal": "withdrawal rate and withdrawal reasons by term.",
+    "gradebook": "course pass rate, highest-failure course, and course pass rate ranked (Score-based metrics, kept for future use).",
+    "attendance": "attendance rate by term.",
+    "engagement": "LMS engagement / at-risk participation indicators.",
+    "absenteeism_hotspots": "the Absenteeism Hotspots breakdown by class and program stage.",
+    "academic_performance": "course pass rate, highest-failure course, and course pass rate ranked -- this is now the authoritative source for those three KPIs.",
+    "midterm_withdrawals": "the Withdrawals Before Midterm KPI (course-withdrawal events split by before/after the midterm point).",
+    "gpa_trend": "the GPA Trend by Entry Cohort chart.",
+    "ladder_rate": "the PN -> AAS/ASN -> BSN Ladder Progression Rate KPI.",
 }
 
 CONFIDENT_THRESHOLD = 0.7   # fraction of "core" columns that must be present
@@ -87,14 +155,17 @@ def _score_type(norm_cols: set[str], sig: dict) -> float:
     present = len(core & norm_cols)
     score = present / len(core)
 
+    # A group needs at least 2 matching columns to count UNLESS the group
+    # itself has fewer than 2 columns in it (a single-column disambiguator,
+    # e.g. {"score"}), in which case just that one column matching is enough.
     required_any_of = sig.get("required_any_of")
     if required_any_of:
-        if not any(len(group & norm_cols) >= 2 for group in required_any_of):
+        if not any(len(group & norm_cols) >= min(2, len(group)) for group in required_any_of):
             score *= 0.3  # heavily penalize -- looks like the sibling type instead
 
     exclude_any_of = sig.get("exclude_any_of")
     if exclude_any_of:
-        if any(len(group & norm_cols) >= 2 for group in exclude_any_of):
+        if any(len(group & norm_cols) >= min(2, len(group)) for group in exclude_any_of):
             score *= 0.3
 
     return round(score, 4)
@@ -114,9 +185,11 @@ def detect_columns(columns) -> DetectionResult:
             all_scores=scores, columns_found=sorted(norm_cols), needs_confirmation=True,
             message=(
                 "This file's columns don't clearly match any known data type "
-                "(enrollment, withdrawal, gradebook, attendance, or LMS engagement). "
-                "Please double-check the file before uploading, or tell us which "
-                "type it is."
+                "(enrollment, withdrawal, gradebook, attendance, LMS engagement, "
+                "absenteeism hotspots, academic performance, withdrawals before "
+                "midterm, GPA trend by cohort, or ladder progression). Please "
+                "double-check the file before uploading, or tell us which type "
+                "it is using the dropdown above."
             ),
         )
 
@@ -131,10 +204,15 @@ def detect_columns(columns) -> DetectionResult:
             ),
         )
 
+    feeds = TYPE_FEEDS.get(top_type, "")
     return DetectionResult(
         detected_type=top_type, confidence=top_score, label=TYPE_LABELS[top_type],
         all_scores=scores, columns_found=sorted(norm_cols), needs_confirmation=False,
-        message=f"Detected as: {TYPE_LABELS[top_type]} (confidence {top_score:.0%}).",
+        message=(
+            f"Detected as: {TYPE_LABELS[top_type]} (confidence {top_score:.0%}). "
+            f"This updates: {feeds}" if feeds else
+            f"Detected as: {TYPE_LABELS[top_type]} (confidence {top_score:.0%})."
+        ),
     )
 
 

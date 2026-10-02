@@ -3,11 +3,16 @@ Upload Data page.
 
 Flow for the staff member:
   1. Pick one or more files (drag-and-drop or browse).
-  2. For each file, the system guesses what kind of data it is by looking
-     at its column headers and shows that guess with a confidence level.
+  2. For each file, optionally say what type it is if they already know --
+     defaulting to "Not sure -- let the system detect". Either way, the
+     system also scores the file's column headers against every known data
+     type and shows what it thinks, including what dashboard KPIs that type
+     feeds, and flags it if a manual pick doesn't match what the columns
+     look like.
   3. The staff member confirms (or corrects) the type for each file using a
      dropdown -- nothing is ever saved without an explicit confirmation
-     click, so a wrong auto-guess can't silently corrupt the archive.
+     click, so a wrong guess (manual or automatic) can't silently corrupt
+     the archive.
   4. Saved files are archived permanently (backed up to GitHub) and are
      picked up automatically the next time someone clicks "Run Analysis" --
      uploading here does NOT recompute anything by itself.
@@ -20,8 +25,10 @@ import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "analysis"))
 
-from detectors import detect_file, TYPE_LABELS  # noqa: E402
+from detectors import detect_file, TYPE_LABELS, TYPE_FEEDS  # noqa: E402
 from git_sync import pull_latest, commit_and_push, sync_configured, GitSyncError  # noqa: E402
+
+NOT_SURE = "__not_sure__"
 
 st.set_page_config(page_title="Upload Data -- Felbry KPI System", page_icon="📤", layout="wide")
 st.title("📤 Upload Data")
@@ -42,8 +49,10 @@ else:
 
 st.markdown(
     "Upload one or more export files below (enrollment, withdrawal, gradebook, "
-    "attendance, or LMS engagement -- CSV or Excel). The system will guess "
-    "what each one is; please double-check its guess before saving."
+    "attendance, LMS engagement, absenteeism hotspots, academic performance, "
+    "withdrawals before midterm, GPA trend, or ladder rate -- CSV or Excel). "
+    "The system will guess what each one is; please double-check its guess "
+    "before saving."
 )
 
 uploaded_files = st.file_uploader(
@@ -58,28 +67,63 @@ if "confirmed_types" not in st.session_state:
 if uploaded_files:
     st.divider()
     to_save = []
+    type_options = list(TYPE_LABELS.keys())
     for uf in uploaded_files:
         file_bytes = uf.getvalue()
         result, df = detect_file(file_bytes, uf.name)
 
         with st.container(border=True):
-            cols = st.columns([3, 2, 2])
-            cols[0].markdown(f"**{uf.name}**")
-            cols[0].caption(f"{len(file_bytes):,} bytes")
+            st.markdown(f"**{uf.name}**")
+            st.caption(f"{len(file_bytes):,} bytes")
 
-            if result.needs_confirmation:
-                cols[1].warning(result.message, icon="❓")
+            preselect_cols = st.columns([3, 3])
+            preselected = preselect_cols[0].selectbox(
+                "If you already know the data type, pick it here (optional)",
+                [NOT_SURE] + type_options,
+                index=0,
+                format_func=lambda t: "Not sure -- let the system detect" if t == NOT_SURE else TYPE_LABELS[t],
+                key=f"preselect_{uf.name}",
+            )
+
+            detect_box = preselect_cols[1]
+            if preselected == NOT_SURE:
+                if result.needs_confirmation:
+                    detect_box.warning(result.message, icon="❓")
+                else:
+                    detect_box.success(result.message, icon="✅")
             else:
-                cols[1].success(result.message, icon="✅")
+                # Staff told us what it is -- still show what the columns
+                # look like as a sanity check, so a wrong manual pick gets
+                # caught before it's saved rather than silently corrupting
+                # the archive.
+                feeds = TYPE_FEEDS.get(preselected, "")
+                detect_box.info(
+                    f"You selected: {TYPE_LABELS[preselected]}."
+                    + (f" This updates: {feeds}" if feeds else ""),
+                    icon="✅",
+                )
+                if (
+                    not result.needs_confirmation
+                    and result.detected_type is not None
+                    and result.detected_type != preselected
+                ):
+                    detect_box.warning(
+                        f"Heads up: based on its column headers, this file actually "
+                        f"looks like **{TYPE_LABELS[result.detected_type]}** "
+                        f"(confidence {result.confidence:.0%}), not "
+                        f"**{TYPE_LABELS[preselected]}**. Double-check which one is "
+                        f"right before saving.",
+                        icon="⚠️",
+                    )
 
-            type_options = list(TYPE_LABELS.keys())
+            default_type = preselected if preselected != NOT_SURE else result.detected_type
             default_index = (
-                type_options.index(result.detected_type)
-                if result.detected_type in type_options
+                type_options.index(default_type)
+                if default_type in type_options
                 else 0
             )
-            chosen_type = cols[2].selectbox(
-                "Confirm data type",
+            chosen_type = st.selectbox(
+                "Confirm data type to save as",
                 type_options,
                 index=default_index,
                 format_func=lambda t: TYPE_LABELS[t],

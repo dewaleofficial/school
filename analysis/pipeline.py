@@ -62,6 +62,9 @@ pd.set_option('future.no_silent_downcasting', True)
 MIN_N_FOR_PROGRAM_RETENTION = 15
 MIN_N_FOR_HIGHEST_FAILURE = 15
 MIN_N_FOR_GPA_CELL = 3
+MIN_N_FOR_HOTSPOT_CELL = 5   # Absenteeism Hotspots: minimum (class, program-stage) attendance
+                             # events before a cell is shown, same reasoning as the other
+                             # small-cell thresholds -- a 1-2 session cell isn't a trend.
 
 NEVER_STARTED = {'No Start', 'New Applicant', 'Accepted'}
 PROGRAM_SHORT = {
@@ -76,6 +79,34 @@ FAIL_GRADES = {'F', 'WF', 'U'}
 GPA_MAP = {'A': 4.0, 'B': 3.0, 'C': 2.0, 'F': 0.0}
 PRESENT_TYPES = {'Present', 'Tardy/Late', 'Tardy/Late excused'}
 EXCLUDE_ATTENDANCE_TYPES = {'No class'}
+
+# PN -> AAS/ADN -> BSN ladder rung, by Program label. Every Program variant
+# observed in the real Ladder Rate extract is mapped; "AASN PN-Test" (a
+# single row, clearly a test/junk record from the source system) is left
+# unmapped on purpose so it's dropped rather than counted anywhere.
+LADDER_RUNG = {
+    'Practical Nursing': 1,
+    'Practical Nursing Program': 1,
+    'Associate of Applied Science in Nursing': 2,
+    'Associate of Applied Science in Nursing One + One': 2,
+    'Registered Nursing': 2,
+    'Bachelor of Science in Nursing': 3,
+    'RN to BSN Completion Program': 3,
+}
+
+# Official registrar term calendar (from Felbry's own term-dates document),
+# used instead of inferring start/end dates from the data whenever a term is
+# one of these six. Inference (see `_infer_term_calendar` below) is kept as
+# the fallback for any term not in this table, so a future term "just works"
+# the moment its enrollment file is uploaded, the same as before.
+OFFICIAL_TERM_CALENDAR = {
+    'Fall 2024':   (pd.Timestamp('2024-08-26'), pd.Timestamp('2024-12-13')),
+    'Spring 2025': (pd.Timestamp('2025-01-06'), pd.Timestamp('2025-05-02')),
+    'Summer 2025': (pd.Timestamp('2025-05-12'), pd.Timestamp('2025-08-22')),
+    'Fall 2025':   (pd.Timestamp('2025-09-02'), pd.Timestamp('2025-12-19')),
+    'Spring 2026': (pd.Timestamp('2026-01-05'), pd.Timestamp('2026-04-24')),
+    'Summer 2026': (pd.Timestamp('2026-05-04'), pd.Timestamp('2026-08-21')),
+}
 
 
 class PipelineError(Exception):
@@ -203,29 +234,58 @@ def run_pipeline(archive_root: str = "data_archive") -> dict:
 
     TERM_ORDER = sorted(term_start.keys(), key=lambda t: term_start[t])
 
-    # Gradebook is loaded now (rather than in step 7) because it's needed to
-    # infer the end date of the most recent term.
+    # Gradebook and Academic Performance Rate data are both loaded now
+    # (rather than in step 7) because either can help infer the end date of
+    # the most recent term when it isn't one of the OFFICIAL_TERM_CALENDAR
+    # terms below. Academic Performance Rate data is the authoritative
+    # source for course pass/fail (step 7); gradebook is kept archived for
+    # its Score column, which nothing currently uses but which is wanted for
+    # a future Score-based At-Risk Students metric.
     gradebook = _load_and_concat(archive_root, 'gradebook')
+    academic_performance = _load_and_concat(archive_root, 'academic_performance')
     next_term_start = None
-    if not gradebook.empty and 'Class Start Date' in gradebook.columns:
-        gb_dates = to_date(gradebook['Class Start Date'])
+    class_date_sources = [
+        df['Class Start Date'] for df in (gradebook, academic_performance)
+        if not df.empty and 'Class Start Date' in df.columns
+    ]
+    if class_date_sources:
+        all_class_dates = pd.concat([to_date(s) for s in class_date_sources], ignore_index=True)
         last_term_start = term_start[TERM_ORDER[-1]]
-        candidates = gb_dates[gb_dates > last_term_start + timedelta(days=90)]
+        candidates = all_class_dates[all_class_dates > last_term_start + timedelta(days=90)]
         if len(candidates):
             next_term_start = candidates.min()
 
     term_calendar = {}
     for i, term in enumerate(TERM_ORDER):
-        start = term_start[term]
-        if i + 1 < len(TERM_ORDER):
-            end = term_start[TERM_ORDER[i + 1]] - timedelta(days=1)
-        elif next_term_start is not None:
-            end = next_term_start - timedelta(days=1)
+        if term in OFFICIAL_TERM_CALENDAR:
+            # Known term -- use Felbry's own registrar calendar rather than
+            # an inferred one.
+            start, end = OFFICIAL_TERM_CALENDAR[term]
         else:
-            end = start + timedelta(days=119)  # fallback: assume a ~17-week term
+            # Unlisted (presumably future) term -- infer it the same way
+            # this system always has: mode of Start Date for the start, and
+            # either the next term's start (minus a day) or the earliest
+            # class date more than 90 days out for the end.
+            start = term_start[term]
+            if i + 1 < len(TERM_ORDER):
+                end = term_start[TERM_ORDER[i + 1]] - timedelta(days=1)
+            elif next_term_start is not None:
+                end = next_term_start - timedelta(days=1)
+            else:
+                end = start + timedelta(days=119)  # fallback: assume a ~17-week term
         term_calendar[term] = {'start': start, 'end': end}
 
     term_idx_map = {t: i for i, t in enumerate(TERM_ORDER)}
+
+    def _term_for_date(d):
+        """Shared helper: which known term (if any) a date falls inside."""
+        if pd.isna(d):
+            return None
+        for t in TERM_ORDER:
+            b = term_calendar[t]
+            if b['start'] <= d <= b['end']:
+                return t
+        return None
 
     # -----------------------------------------------------------------
     # 3. Active-headcount reconstruction (unchanged logic).
@@ -315,17 +375,7 @@ def run_pipeline(archive_root: str = "data_archive") -> dict:
         })
         withdrawals['end_date'] = to_date(withdrawals['end_date'])
         withdrawals = _dedupe_keep_latest(withdrawals, ['student_id', 'end_date'])
-
-        def _term_for_withdrawal(d):
-            if pd.isna(d):
-                return None
-            for t in TERM_ORDER:
-                b = term_calendar[t]
-                if b['start'] <= d <= b['end']:
-                    return t
-            return None
-
-        withdrawals['term'] = withdrawals['end_date'].map(_term_for_withdrawal)
+        withdrawals['term'] = withdrawals['end_date'].map(_term_for_date)
         withdrawals['withdrawal_reason'] = (
             withdrawals.get('withdrawal_reason', pd.Series(dtype=str))
             .fillna('Not stated').astype(str).str.strip().replace('', 'Not stated')
@@ -342,28 +392,30 @@ def run_pipeline(archive_root: str = "data_archive") -> dict:
             reasons_by_term[term] = term_counts
 
     # -----------------------------------------------------------------
-    # 7. Course pass/fail (gradebook).
+    # 7. Course pass/fail -- Academic Performance Rate data is now the
+    #    AUTHORITATIVE source for this (per Felbry's own methodology doc),
+    #    not Gradebook. Gradebook is still archived above and kept available
+    #    for a future Score-based metric, but no longer feeds this KPI.
     # -----------------------------------------------------------------
     overall_pass_rate = None
     graded_n = 0
     by_course_records = []
     highest_failure = None
-    gpa_trend_records = []
 
-    if not gradebook.empty:
-        gb = gradebook.rename(columns={
-            'Student Id Number': 'student_id', 'Grade Title': 'grade', 'Score': 'score',
+    if not academic_performance.empty:
+        ap = academic_performance.rename(columns={
+            'Student Id Number': 'student_id', 'Grade Title': 'grade',
             'Course Number': 'course_no', 'Course Title': 'course_title',
             'Class Name': 'class_name', 'Class Start Date': 'class_start', 'Class End Date': 'class_end',
         })
-        key_cols = [c for c in ['student_id', 'course_no', 'class_start'] if c in gb.columns]
+        key_cols = [c for c in ['student_id', 'course_no', 'class_start'] if c in ap.columns]
         if key_cols:
-            gb = _dedupe_keep_latest(gb, key_cols)
-        gb['class_start'] = to_date(gb['class_start']) if 'class_start' in gb.columns else pd.NaT
+            ap = _dedupe_keep_latest(ap, key_cols)
+        ap['class_start'] = to_date(ap['class_start']) if 'class_start' in ap.columns else pd.NaT
 
-        gb['outcome'] = np.where(gb['grade'].isin(PASS_GRADES), 'Pass',
-                          np.where(gb['grade'].isin(FAIL_GRADES), 'Fail', 'Excluded'))
-        graded = gb[gb['outcome'] != 'Excluded']
+        ap['outcome'] = np.where(ap['grade'].isin(PASS_GRADES), 'Pass',
+                          np.where(ap['grade'].isin(FAIL_GRADES), 'Fail', 'Excluded'))
+        graded = ap[ap['outcome'] != 'Excluded']
         graded_n = int(len(graded))
         if graded_n:
             overall_pass_rate = (graded['outcome'] == 'Pass').mean()
@@ -380,34 +432,93 @@ def run_pipeline(archive_root: str = "data_archive") -> dict:
             eligible = by_course[by_course['n'] >= MIN_N_FOR_HIGHEST_FAILURE]
             highest_failure = (eligible if len(eligible) else by_course).iloc[0].to_dict()
 
-        # GPA trend by entry cohort & term.
-        gb['gpa_points'] = gb['grade'].map(GPA_MAP)
+    # -----------------------------------------------------------------
+    # 7b. GPA trend by entry cohort -- now sourced from the dedicated GPA
+    #     Trend by Cohort extract (credit- and grade-point-weighted Term GPA
+    #     per Felbry's formula), not from Gradebook's unweighted letter grade.
+    #
+    #     Data-quality fix: the raw export fans out every course row against
+    #     EVERY historical Program-Registration record a student has (one
+    #     copy of the student's full course history per past "Enrolled
+    #     Semester" value on file) -- e.g. a student with 3 historical
+    #     registration records shows every one of their courses 3 times,
+    #     identical except for the Enrolled Semester tag. We collapse this
+    #     back to one row per (student, course, class date) and separately
+    #     determine each student's TRUE entry cohort as the earliest
+    #     Enrolled Semester value found anywhere in their rows, rather than
+    #     trusting whichever copy happens to remain after dedup.
+    # -----------------------------------------------------------------
+    gpa_trend_records = []
+    gpa_trend_raw = _load_and_concat(archive_root, 'gpa_trend')
+    if not gpa_trend_raw.empty:
+        gt = gpa_trend_raw.rename(columns={
+            'Student Id Number': 'student_id', 'Course Number': 'course_no',
+            'Course Title': 'course_title', 'Credit': 'credit', 'Grade Point': 'grade_point',
+            'Grade Title': 'grade', 'Class Start Date': 'class_start', 'Enrolled Semester': 'entry_term_raw',
+        })
+        gt['entry_cohort_raw'] = gt['entry_term_raw'].map(_normalize_term_label)
+        gt['class_start'] = to_date(gt['class_start'])
+        gt['credit'] = pd.to_numeric(gt['credit'], errors='coerce')
+        gt['grade_point'] = pd.to_numeric(gt['grade_point'], errors='coerce')
 
-        def _term_for_class(d):
-            if pd.isna(d):
-                return None
-            for t in TERM_ORDER:
-                b = term_calendar[t]
-                if b['start'] <= d <= b['end']:
-                    return t
-            return None
+        # True entry cohort per student = earliest cohort label on any of
+        # their rows, ordered chronologically (not alphabetically).
+        season_rank = {'Spring': 0, 'Summer': 1, 'Fall': 2}
 
-        gb['term'] = gb['class_start'].map(_term_for_class)
-        entry_cohort = (
-            roster.sort_values('start_date').drop_duplicates('student_id', keep='first')
-            .set_index('student_id')['entry_term']
+        def _cohort_sort_key(label):
+            parts = str(label).split()
+            if len(parts) != 2 or not parts[1].isdigit():
+                return (9999, 9)
+            return (int(parts[1]), season_rank.get(parts[0], 9))
+
+        true_cohort = (
+            gt.dropna(subset=['entry_cohort_raw'])
+            .groupby('student_id')['entry_cohort_raw']
+            .agg(lambda labels: min(labels, key=_cohort_sort_key))
         )
-        gb['entry_cohort'] = gb['student_id'].map(entry_cohort)
 
-        gpa_gradeable = gb.dropna(subset=['gpa_points', 'term', 'entry_cohort'])
-        gpa_gradeable = gpa_gradeable[
-            gpa_gradeable['term'].map(term_idx_map) >= gpa_gradeable['entry_cohort'].map(term_idx_map)
-        ]
-        if len(gpa_gradeable):
-            gpa_trend = gpa_gradeable.groupby(['entry_cohort', 'term'])['gpa_points'].agg(['mean', 'count']).reset_index()
+        # Now collapse the fan-out duplicates: one row per student/course/
+        # class date (credit, grade, and grade point are identical across
+        # the duplicated copies, so which copy survives doesn't matter).
+        key_cols = [c for c in ['student_id', 'course_no', 'class_start'] if c in gt.columns]
+        if key_cols:
+            gt = _dedupe_keep_latest(gt, key_cols)
+        gt['entry_cohort'] = gt['student_id'].map(true_cohort)
+
+        # Only Pass/Fail-classified grades count toward GPA (same rule as
+        # course pass/fail above) -- a plain withdrawal (W) or in-progress
+        # row carries no real letter grade and shouldn't drag down GPA the
+        # way a 0.0-quality-point row otherwise would.
+        gt['gpa_outcome'] = np.where(gt['grade'].isin(PASS_GRADES), 'Pass',
+                             np.where(gt['grade'].isin(FAIL_GRADES), 'Fail', 'Excluded'))
+        gt['term'] = gt['class_start'].map(_term_for_date)
+
+        gpa_countable = gt[(gt['gpa_outcome'] != 'Excluded')].dropna(
+            subset=['term', 'entry_cohort', 'credit', 'grade_point']
+        )
+        if len(gpa_countable):
+            # Step 1: credit-weighted Term GPA per student per term.
+            per_student_term = gpa_countable.groupby(['student_id', 'entry_cohort', 'term']).agg(
+                total_points=('grade_point', 'sum'),
+                total_credits=('credit', 'sum'),
+            ).reset_index()
+            per_student_term = per_student_term[per_student_term['total_credits'] > 0]
+            per_student_term['term_gpa'] = per_student_term['total_points'] / per_student_term['total_credits']
+
+            # Step 2: average those per-student Term GPAs within each
+            # (entry cohort, term) cell for the chart.
+            gpa_trend = per_student_term.groupby(['entry_cohort', 'term'])['term_gpa'].agg(['mean', 'count']).reset_index()
             gpa_trend = gpa_trend.rename(columns={'mean': 'gpa_points'})
             gpa_trend = gpa_trend[gpa_trend['count'] >= MIN_N_FOR_GPA_CELL]
             gpa_trend_records = gpa_trend.to_dict('records')
+
+    # Shared by attendance-by-stage and absenteeism hotspots below: each
+    # student's program-stage index is "terms since their first enrollment
+    # record," derived once here from the roster.
+    entry_idx_by_student = (
+        roster.sort_values('start_date').drop_duplicates('student_id', keep='first')
+        .set_index('student_id')['entry_term'].map(term_idx_map)
+    )
 
     # -----------------------------------------------------------------
     # 8. Attendance.
@@ -421,29 +532,15 @@ def run_pipeline(archive_root: str = "data_archive") -> dict:
         if key_cols:
             attendance = _dedupe_keep_latest(attendance, key_cols)
         attendance['att_date'] = to_date(attendance.get('Attendance Date', pd.Series(dtype=str)))
-
-        def _term_for_attendance(d):
-            if pd.isna(d):
-                return None
-            for t in TERM_ORDER:
-                b = term_calendar[t]
-                if b['start'] <= d <= b['end']:
-                    return t
-            return None
-
-        attendance['term'] = attendance['att_date'].map(_term_for_attendance)
+        attendance['term'] = attendance['att_date'].map(_term_for_date)
         for term, grp in attendance.dropna(subset=['term']).groupby('term'):
             valid = grp[~grp['Attendance Type'].isin(EXCLUDE_ATTENDANCE_TYPES)]
             present = int(valid['Attendance Type'].isin(PRESENT_TYPES).sum())
             rate = present / len(valid) if len(valid) else None
             attendance_by_term[term] = {'present': present, 'total_valid': int(len(valid)), 'rate': rate}
 
-        entry_idx = (
-            roster.sort_values('start_date').drop_duplicates('student_id', keep='first')
-            .set_index('student_id')['entry_term'].map(term_idx_map)
-        )
         attendance['term_idx'] = attendance['term'].map(term_idx_map)
-        attendance['entry_idx'] = attendance['student_id'].map(entry_idx)
+        attendance['entry_idx'] = attendance['student_id'].map(entry_idx_by_student)
         attendance['stage'] = attendance['term_idx'] - attendance['entry_idx'] + 1
         att_valid = attendance[~attendance['Attendance Type'].isin(EXCLUDE_ATTENDANCE_TYPES)]
         att_valid = att_valid.dropna(subset=['stage'])
@@ -451,6 +548,124 @@ def run_pipeline(archive_root: str = "data_archive") -> dict:
         if len(att_valid):
             stage_group = att_valid.groupby('stage')['Attendance Type'].apply(lambda s: s.isin(PRESENT_TYPES).mean())
             attendance_by_stage = {int(k): float(v) for k, v in stage_group.items()}
+
+    # -----------------------------------------------------------------
+    # 8b. Absenteeism Hotspots -- attendance cross-tabbed by Class Name x
+    #     Program Stage (semesters since entry), same stage derivation as
+    #     the attendance-by-stage chart above, and the same "No class"
+    #     exclusion from the denominator used everywhere else attendance
+    #     is scored.
+    # -----------------------------------------------------------------
+    absenteeism_hotspots = []
+    hotspots = _load_and_concat(archive_root, 'absenteeism_hotspots')
+    if not hotspots.empty:
+        hs = hotspots.rename(columns={'Student Id Number': 'student_id', 'Class Name': 'class_name'})
+        key_cols = [c for c in ['student_id', 'Attendance Date', 'Attendance Type', 'class_name'] if c in hs.columns]
+        if key_cols:
+            hs = _dedupe_keep_latest(hs, key_cols)
+        hs['att_date'] = to_date(hs.get('Attendance Date', pd.Series(dtype=str)))
+        hs['term'] = hs['att_date'].map(_term_for_date)
+        hs['term_idx'] = hs['term'].map(term_idx_map)
+        hs['entry_idx'] = hs['student_id'].map(entry_idx_by_student)
+        hs['stage'] = hs['term_idx'] - hs['entry_idx'] + 1
+
+        hs_valid = hs[~hs['Attendance Type'].isin(EXCLUDE_ATTENDANCE_TYPES)]
+        hs_valid = hs_valid.dropna(subset=['stage', 'class_name'])
+        hs_valid = hs_valid[hs_valid['stage'].between(1, 4)]
+        if len(hs_valid):
+            grouped = hs_valid.groupby(['class_name', 'stage']).agg(
+                n=('Attendance Type', 'size'),
+                present=('Attendance Type', lambda s: s.isin(PRESENT_TYPES).sum()),
+            ).reset_index()
+            grouped = grouped[grouped['n'] >= MIN_N_FOR_HOTSPOT_CELL]
+            grouped['absence_rate'] = 1 - grouped['present'] / grouped['n']
+            absenteeism_hotspots = [
+                {"class_name": r["class_name"], "stage": int(r["stage"]), "n": int(r["n"]),
+                 "absence_rate": dround_or_none(r["absence_rate"])}
+                for r in grouped.to_dict('records')
+            ]
+
+    # -----------------------------------------------------------------
+    # 8c. Withdrawals Before Midterm -- course-withdrawal EVENTS (there is
+    #     no student ID in this export, so counts are events, not unique
+    #     students, per Felbry's own spec for this metric). A plain "W"
+    #     grade means the withdrawal happened before the course's midterm
+    #     point; "WP"/"WF" both mean after -- this sidesteps needing one
+    #     midpoint date that would have to work for 8-week, second-8-week,
+    #     and full-semester courses alike.
+    #
+    #     No dedup is applied here: with no student ID, two genuinely
+    #     different students who withdrew from the same course on the same
+    #     dates with the same grade would look like an identical row, so a
+    #     row-level dedup could wrongly discard a real second withdrawal.
+    #     If a term's file needs correcting, replace it in the archive
+    #     rather than uploading a second overlapping one.
+    # -----------------------------------------------------------------
+    midterm_withdrawals = None
+    mw_raw = _load_and_concat(archive_root, 'midterm_withdrawals')
+    if not mw_raw.empty:
+        mw = mw_raw.rename(columns={'Grade Title': 'grade', 'Class Start Date': 'class_start'})
+        mw['class_start'] = to_date(mw['class_start'])
+        mw['when'] = np.where(mw['grade'] == 'W', 'before',
+                       np.where(mw['grade'].isin(['WP', 'WF']), 'after', None))
+        mw = mw.dropna(subset=['when'])
+        mw['term'] = mw['class_start'].map(_term_for_date)
+
+        total = len(mw)
+        before = int((mw['when'] == 'before').sum())
+        after = int((mw['when'] == 'after').sum())
+        by_term = {}
+        for term, grp in mw.dropna(subset=['term']).groupby('term'):
+            b = int((grp['when'] == 'before').sum())
+            a = int((grp['when'] == 'after').sum())
+            n = b + a
+            by_term[term] = {"before_midterm": b, "after_midterm": a, "rate_before_midterm": dround_or_none(b / n) if n else None}
+        midterm_withdrawals = {
+            "before_midterm": before, "after_midterm": after, "total": total,
+            "rate_before_midterm": dround_or_none(before / total) if total else None,
+            "by_term": by_term,
+        }
+
+    # -----------------------------------------------------------------
+    # 8d. PN -> AAS/ADN -> BSN Ladder Progression Rate. Felbry's methodology
+    #     doc establishes the data (confirming the same Student ID recurs
+    #     across program registrations) but doesn't finalize an exact
+    #     formula, so this uses the most direct reading of "ladder rate":
+    #     of students whose FIRST (earliest Start Date) program registration
+    #     was Practical Nursing, what share later also registered in a
+    #     higher rung (AAS/ADN and/or BSN)? "AASN PN-Test" is unmapped in
+    #     LADDER_RUNG on purpose (a single-row test/junk record) and is
+    #     dropped rather than counted.
+    # -----------------------------------------------------------------
+    ladder_rate = None
+    ladder_raw = _load_and_concat(archive_root, 'ladder_rate')
+    if not ladder_raw.empty:
+        lr = ladder_raw.rename(columns={
+            'Student Id Number': 'student_id', 'Program': 'program', 'Start Date': 'start_date',
+        })
+        lr = _dedupe_keep_latest(lr, [c for c in ['student_id', 'program', 'start_date'] if c in lr.columns])
+        lr['start_date'] = to_date(lr['start_date'])
+        lr['rung'] = lr['program'].map(LADDER_RUNG)
+        lr = lr.dropna(subset=['rung', 'start_date'])
+
+        if len(lr):
+            first_rows = lr.sort_values('start_date').drop_duplicates('student_id', keep='first')
+            base_rung = first_rows.set_index('student_id')['rung']
+            max_rung = lr.groupby('student_id')['rung'].max()
+
+            pn_origin = set(base_rung[base_rung == 1].index)
+            reached_aas = {sid for sid in pn_origin if max_rung.get(sid, 0) >= 2}
+            reached_bsn = {sid for sid in pn_origin if max_rung.get(sid, 0) >= 3}
+            progressed = reached_aas | reached_bsn
+
+            denom = len(pn_origin)
+            ladder_rate = {
+                "pn_origin_n": denom,
+                "progressed_n": len(progressed),
+                "reached_aas_n": len(reached_aas),
+                "reached_bsn_n": len(reached_bsn),
+                "rate": dround_or_none(len(progressed) / denom) if denom else None,
+            }
 
     # -----------------------------------------------------------------
     # 9. Completion proxy by enroll type.
@@ -529,6 +744,9 @@ def run_pipeline(archive_root: str = "data_archive") -> dict:
             for t, v in attendance_by_term.items()
         },
         "attendance_by_program_stage": {str(k): dround_or_none(v) for k, v in attendance_by_stage.items()},
+        "absenteeism_hotspots": absenteeism_hotspots,
+        "midterm_withdrawals": midterm_withdrawals,
+        "ladder_rate": ladder_rate,
         "completion_proxy_by_enroll_type": {k: dround_or_none(v) for k, v in completion_proxy.items()},
         "_archive_summary": {
             "enrollment_files": len(_archive_files(archive_root, 'enrollment')),
@@ -537,6 +755,11 @@ def run_pipeline(archive_root: str = "data_archive") -> dict:
             "attendance_files": len(_archive_files(archive_root, 'attendance')),
             "engagement_files": len(_archive_files(archive_root, 'engagement')),
             "engagement_rows_archived": engagement_rows_archived,
+            "absenteeism_hotspots_files": len(_archive_files(archive_root, 'absenteeism_hotspots')),
+            "academic_performance_files": len(_archive_files(archive_root, 'academic_performance')),
+            "midterm_withdrawals_files": len(_archive_files(archive_root, 'midterm_withdrawals')),
+            "gpa_trend_files": len(_archive_files(archive_root, 'gpa_trend')),
+            "ladder_rate_files": len(_archive_files(archive_root, 'ladder_rate')),
             "roster_rows": int(len(roster)),
             "roster_unique_students": int(roster['student_id'].nunique()),
         },
